@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RAH Referral Dashboard 2026 — BDMS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --navy:   #0d1b35;
+    --navy2:  #152240;
+    --navy3:  #1c2f52;
+    --card:   #182038;
+    --accent: #e05a2b;
+    --blue:   #3a8ee6;
+    --teal:   #1db89a;
+    --orange: #e07b30;
+    --purple: #8879df;
+    --border: rgba(255,255,255,0.07);
+    --text:   #e8edf5;
+    --muted:  #7a8aaa;
+    --font:   'IBM Plex Sans', sans-serif;
+    --mono:   'IBM Plex Mono', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: var(--navy); color: var(--text); font-family: var(--font); font-size: 13px; }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    background: var(--navy2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    height: 52px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .brand { font-family: var(--mono); font-size: 18px; font-weight: 600; color: var(--accent); letter-spacing: -0.5px; }
+  .title { font-size: 14px; font-weight: 500; color: var(--text); letter-spacing: 0.3px; }
+  .yr-badge {
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    background: var(--accent); color: #fff; border-radius: 4px;
+    padding: 2px 8px; letter-spacing: 0.5px;
+  }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .last-update { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .refresh-btn {
+    background: rgba(255,255,255,0.08); border: 1px solid var(--border);
+    color: var(--text); font-size: 11px; font-family: var(--font);
+    padding: 5px 14px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; gap: 6px;
+    transition: background .2s;
+  }
+  .refresh-btn:hover { background: rgba(255,255,255,0.15); }
+  .refresh-btn svg { width: 13px; height: 13px; }
+
+  /* ── MAIN LAYOUT ── */
+  .main { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; min-height: calc(100vh - 52px); }
+
+  /* ── KPI ROW ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .kpi {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; position: relative; overflow: hidden;
+  }
+  .kpi::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--accent);
+  }
+  .kpi.blue::before  { background: var(--blue); }
+  .kpi.teal::before  { background: var(--teal); }
+  .kpi.purple::before{ background: var(--purple); }
+  .kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 6px; }
+  .kpi-val { font-family: var(--mono); font-size: 28px; font-weight: 600; color: var(--text); line-height: 1; }
+  .kpi-sub { display: flex; align-items: center; gap: 5px; margin-top: 5px; font-size: 11px; }
+  .down { color: var(--accent); } .up { color: var(--teal); }
+  .kpi-icon { position: absolute; right: 14px; top: 14px; font-size: 22px; opacity: .15; }
+
+  /* ── MIDDLE ROW ── */
+  .mid-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+  /* ── BOTTOM ROW ── */
+  .bot-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .card-title {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted);
+    margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+  }
+  .card-title::before { content: ''; display: inline-block; width: 3px; height: 12px; background: var(--blue); border-radius: 2px; }
+
+  /* ── DONUT CHART ── */
+  .donut-wrap { position: relative; height: 148px; }
+
+  /* ── LEGEND ── */
+  .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 14px; margin-top: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--muted); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── HBAR ── */
+  .hbar-list { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
+  .hbar-row  { display: flex; align-items: center; gap: 7px; }
+  .hbar-name { width: 115px; text-align: right; font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+  .hbar-track{ flex: 1; height: 12px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
+  .hbar-fill { height: 100%; background: var(--blue); border-radius: 3px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+  .hbar-cnt  { font-family: var(--mono); font-size: 10px; font-weight: 500; color: var(--text); min-width: 18px; }
+
+  /* ── TABLE ── */
+  .tbl-wrap { overflow-x: auto; margin-top: 2px; }
+  .data-tbl { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 10px; }
+  .data-tbl th {
+    color: var(--muted); font-weight: 500; text-align: center; padding: 5px 4px;
+    border-bottom: 1px solid var(--border); letter-spacing: 0.3px; white-space: nowrap;
+  }
+  .data-tbl th:first-child { text-align: left; }
+  .data-tbl td { text-align: center; padding: 5px 4px; border-bottom: 1px solid var(--border); }
+  .data-tbl td:first-child { text-align: left; font-weight: 500; }
+  .data-tbl tr:last-child td { border-bottom: none; }
+  .c25 { color: var(--orange); } .c26 { color: var(--blue); }
+
+  /* ── STATUS BAR ── */
+  .status {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 2px 2px 6px;
+  }
+  .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); margin-right: 5px; }
+  .status-dot.live { background: var(--teal); box-shadow: 0 0 6px var(--teal); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+
+  /* ── DEBUG ── */
+  #debug { font-family: var(--mono); font-size: 10px; color: var(--muted); background: var(--navy2); border-radius: 6px; padding: 6px 10px; display: none; }
+
+  /* ── LOADING OVERLAY ── */
+  #overlay {
+    position: fixed; inset: 0; background: var(--navy); z-index: 999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  }
+  #overlay .logo { font-family: var(--mono); font-size: 32px; font-weight: 700; color: var(--accent); }
+  #overlay .msg  { font-size: 13px; color: var(--muted); }
+  .spinner { width: 28px; height: 28px; border: 2.5px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="overlay">
+  <div class="logo">BDMS</div>
+  <div class="spinner"></div>
+  <div class="msg" id="ol-msg">Connecting to Google Sheets…</div>
+</div>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="brand">BDMS</span>
+    <span class="title">RAH — Referral Dashboard</span>
+    <span class="yr-badge" id="yr-badge">2026</span>
+  </div>
+  <div class="topbar-right">
+    <span class="last-update" id="last-update">—</span>
+    <button class="refresh-btn" onclick="init()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Refresh
+    </button>
+  </div>
+</div>
+
+<!-- Main content -->
+<div class="main">
+
+  <!-- KPI Row -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-icon">📋</div>
+      <div class="kpi-label">Total YTD Cases</div>
+      <div class="kpi-val" id="k1">—</div>
+      <div class="kpi-sub"><span id="k1c" class="down">—</span><span style="color:var(--muted)">vs prior year</span></div>
+    </div>
+    <div class="kpi blue">
+      <div class="kpi-icon">💰</div>
+      <div class="kpi-label">Bill Amount (YTD)</div>
+      <div class="kpi-val" id="k2">—</div>
+      <div class="kpi-sub"><span id="k2c" class="down">—</span><span style="color:var(--muted)">vs prior year</span></div>
+    </div>
+    <div class="kpi teal">
+      <div class="kpi-icon">👤</div>
+      <div class="kpi-label">Male / Female</div>
+      <div class="kpi-val" id="k3">—</div>
+      <div class="kpi-sub" id="k3s" style="color:var(--muted);">—</div>
+    </div>
+    <div class="kpi purple">
+      <div class="kpi-icon">🏥</div>
+      <div class="kpi-label">Trauma Rate</div>
+      <div class="kpi-val" id="k4">—</div>
+      <div class="kpi-sub" style="color:var(--muted);">of total cases</div>
+    </div>
+  </div>
+
+  <!-- Mid: 3 charts -->
+  <div class="mid-row">
+    <div class="card">
+      <div class="card-title">% Trauma &amp; Non-Trauma</div>
+      <div class="donut-wrap"><canvas id="cT"></canvas></div>
+      <div class="legend" id="lgT"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">% Tariff</div>
+      <div class="donut-wrap"><canvas id="cTf"></canvas></div>
+      <div class="legend" id="lgTf"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">% Tariff by Referral Source</div>
+      <div class="hbar-list" id="srcbars"></div>
+    </div>
+  </div>
+
+  <!-- Bot: 2 bar charts -->
+  <div class="bot-row">
+    <div class="card">
+      <div class="card-title">Monthly Cases — 2025 vs 2026</div>
+      <div class="legend" style="margin-bottom:8px;justify-content:flex-start;">
+        <div class="legend-item"><span class="legend-dot" style="background:#3a8ee6"></span>2026</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#e07b30"></span>2025</div>
+      </div>
+      <div style="position:relative;height:190px;"><canvas id="cC"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Monthly Billing — 2025 vs 2026</div>
+      <div class="legend" style="margin-bottom:8px;justify-content:flex-start;">
+        <div class="legend-item"><span class="legend-dot" style="background:#3a8ee6"></span>2026</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#e07b30"></span>2025</div>
+      </div>
+      <div style="position:relative;height:190px;"><canvas id="cB"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="card-title">Monthly Record Count</div>
+    <div class="tbl-wrap">
+      <table class="data-tbl">
+        <thead>
+          <tr>
+            <th>Year</th><th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th>
+            <th>Jun</th><th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th><th>Total</th>
+          </tr>
+        </thead>
+        <tbody id="tbd">
+          <tr><td colspan="14" style="text-align:center;padding:16px;color:var(--muted);">Loading data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Debug + Status -->
+  <div id="debug"></div>
+  <div class="status">
+    <div><span class="status-dot" id="sdot"></span><span id="sbar">Connecting…</span></div>
+    <div style="color:var(--muted);">Royal Angkor Hospital · BDMS</div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQonSg81K8uCwuNt61k1q20gyUBICi0XQg2_Jg32bjKshUwOVBEU9k_7vp-gvGBa5A0vmJpMjqCp5wt/pub?gid=0&single=true&output=csv';
+const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const CH = {};
+
+/* ─── CSV parser ─── */
+function parseCSV(txt) {
+  const lines = txt.trim().split(/\r?\n/);
+  const hdrs = splitLine(lines[0]);
+  const rows = lines.slice(1).map(l => {
+    const v = splitLine(l), o = {};
+    hdrs.forEach((h, i) => o[h] = (v[i] || '').trim());
+    return o;
+  });
+  return { headers: hdrs, rows };
+}
+function splitLine(line) {
+  const r = []; let cur = '', inq = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { if (inq && line[i+1] === '"') { cur += '"'; i++; } else inq = !inq; }
+    else if (c === ',' && !inq) { r.push(cur.trim()); cur = ''; }
+    else cur += c;
+  }
+  r.push(cur.trim()); return r;
+}
+
+/* ─── Helpers ─── */
+function fmtK(n) { if (n>=1e6) return (n/1e6).toFixed(1)+'M'; if (n>=1e3) return (n/1e3).toFixed(1)+'K'; return String(Math.round(n)); }
+function pctChg(a,b) { return b ? ((a-b)/b*100).toFixed(1) : null; }
+function findCol(hs, pats) { for (const p of pats) { const h = hs.find(x => new RegExp(p,'i').test(x)); if (h) return h; } return null; }
+function killChart(id) { if (CH[id]) { CH[id].destroy(); delete CH[id]; } }
+
+/* ─── Get year/month from row ─── */
+function getYear(r, yc, dc) {
+  if (yc && r[yc]) { const y = parseInt(r[yc]); if (y > 1900) return y; }
+  if (dc && r[dc]) { const m = r[dc].match(/\b(20\d\d)\b/); if (m) return parseInt(m[1]); const d = new Date(r[dc]); if (!isNaN(d)) return d.getFullYear(); }
+  return 0;
+}
+function getMonth(r, mc, dc) {
+  if (mc && r[mc]) { const n = parseInt(r[mc]); if (n>=1&&n<=12) return n; const mi = MO.findIndex(m => new RegExp(m,'i').test(r[mc])); if (mi>=0) return mi+1; }
+  if (dc && r[dc]) { const d = new Date(r[dc]); if (!isNaN(d)) return d.getMonth()+1; }
+  return 0;
+}
+
+/* ─── Chart builders ─── */
+function donut(id, labels, data, colors) {
+  killChart(id);
+  CH[id] = new Chart(document.getElementById(id).getContext('2d'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#182038' }] },
+    options: { responsive:true, maintainAspectRatio:false, cutout:'65%',
+      plugins: { legend:{display:false}, tooltip:{callbacks:{label:c=>` ${c.label}: ${c.parsed}%`}} } }
+  });
+}
+function barChart(id, d1, d2) {
+  killChart(id);
+  CH[id] = new Chart(document.getElementById(id).getContext('2d'), {
+    type:'bar',
+    data:{ labels:MO, datasets:[
+      {label:'2026',data:d1,backgroundColor:'rgba(58,142,230,0.75)',borderRadius:3},
+      {label:'2025',data:d2,backgroundColor:'rgba(224,123,48,0.75)',borderRadius:3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{font:{size:9,family:'IBM Plex Mono'},color:'#7a8aaa',autoSkip:false,maxRotation:0},grid:{display:false},border:{color:'rgba(255,255,255,0.07)'}},
+        y:{ticks:{font:{size:9,family:'IBM Plex Mono'},color:'#7a8aaa',callback:v=>id==='cB'?fmtK(v):v},grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}}
+      }
+    }
+  });
+}
+
+/* ─── Legend helper ─── */
+function legend(id, items) {
+  document.getElementById(id).innerHTML = items.map(([l,c,v]) =>
+    `<div class="legend-item"><span class="legend-dot" style="background:${c}"></span>${l}${v!=null?' '+v+'%':''}</div>`
+  ).join('');
+}
+
+/* ─── Main process ─── */
+function process({ headers:hdrs, rows }) {
+  const dbg = document.getElementById('debug');
+  dbg.style.display = 'block';
+  dbg.textContent = 'Columns detected: ' + hdrs.join(' · ');
+
+  const yc  = findCol(hdrs,['\\byear\\b','\\byr\\b']);
+  const mc  = findCol(hdrs,['\\bmonth\\b','\\bmo\\b']);
+  const dc  = findCol(hdrs,['date','visit_date','admit']);
+  const bc  = findCol(hdrs,['bill','amount','billing','revenue','charge','total']);
+  const trc = findCol(hdrs,['trauma']);
+  const tfc = findCol(hdrs,['tariff','payer','patient_type','nationality']);
+  const gc  = findCol(hdrs,['gender','sex']);
+  const sc  = findCol(hdrs,['refer','source','clinic','hospital','facility','from']);
+
+  dbg.textContent += `\nMapped → Year:${yc} Month:${mc} Date:${dc} Bill:${bc} Trauma:${trc} Tariff:${tfc} Gender:${gc} Source:${sc}`;
+
+  const now = new Date(), CY = now.getFullYear(), PY = CY-1;
+  document.getElementById('yr-badge').textContent = CY;
+
+  const cur = rows.filter(r => getYear(r,yc,dc) === CY);
+  const prv = rows.filter(r => getYear(r,yc,dc) === PY);
+  const getB = r => bc ? parseFloat((r[bc]||'0').replace(/[^0-9.]/g,''))||0 : 0;
+
+  /* KPIs */
+  const tc=cur.length, tp=prv.length;
+  const bc2=cur.reduce((s,r)=>s+getB(r),0), bp=prv.reduce((s,r)=>s+getB(r),0);
+
+  document.getElementById('k1').textContent = tc;
+  const d1=pctChg(tc,tp);
+  const s1=document.getElementById('k1c');
+  s1.textContent=(d1!==null?d1+'%':'—'); s1.className=d1!==null&&parseFloat(d1)>=0?'up':'down';
+
+  document.getElementById('k2').textContent = bc2>0?fmtK(bc2):tc;
+  const d2=pctChg(bc2,bp);
+  const s2=document.getElementById('k2c');
+  s2.textContent=(d2!==null?d2+'%':'—'); s2.className=d2!==null&&parseFloat(d2)>=0?'up':'down';
+
+  let male=0,female=0;
+  if(gc) cur.forEach(r=>{ const g=(r[gc]||'').toLowerCase(); if(/\bm\b|^male|^man/.test(g)) male++; else female++; });
+  document.getElementById('k3').textContent = gc ? `${male} / ${female}` : '—';
+  document.getElementById('k3s').textContent = gc&&tc ? `${Math.round(male/tc*100)}% male · ${Math.round(female/tc*100)}% female` : '—';
+
+  let tr=0;
+  if(trc) cur.forEach(r=>{ if(/trauma/i.test(r[trc])) tr++; });
+  const trP=tc?Math.round(tr/tc*100):0;
+  document.getElementById('k4').textContent = trP+'%';
+
+  /* Donut – Trauma */
+  const ntP=100-trP;
+  donut('cT',['Non-Trauma','Trauma'],[ntP,trP],['#3a8ee6','#e07b30']);
+  legend('lgT',[['Non-Trauma','#3a8ee6',ntP],['Trauma','#e07b30',trP]]);
+
+  /* Donut – Tariff */
+  const tfMap={};
+  if(tfc) cur.forEach(r=>{ const v=r[tfc]||'Other'; tfMap[v]=(tfMap[v]||0)+1; });
+  const tfL=Object.keys(tfMap), tfD=tfL.map(k=>tfMap[k]);
+  const tfTot=tfD.reduce((a,b)=>a+b,0);
+  const tfP=tfD.map(v=>tfTot?Math.round(v/tfTot*100):0);
+  const tfC=['#8879df','#1db89a','#e07b30','#e05a2b','#3a8ee6'];
+  donut('cTf',tfL.length?tfL:['Resident','Tourist','Expat'],tfP.length?tfP:[49,27,24],tfC);
+  legend('lgTf',(tfL.length?tfL:['Resident','Tourist','Expat']).map((l,i)=>[l,tfC[i],tfP[i]||null]));
+
+  /* Hbars – Source */
+  const srcMap={};
+  if(sc) cur.forEach(r=>{ const v=r[sc]||'Other'; srcMap[v]=(srcMap[v]||0)+1; });
+  const sorted=Object.entries(srcMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const mx=sorted[0]?.[1]||1;
+  document.getElementById('srcbars').innerHTML = sorted.length
+    ? sorted.map(([n,c])=>`<div class="hbar-row"><div class="hbar-name" title="${n}">${n}</div><div class="hbar-track"><div class="hbar-fill" style="width:${Math.round(c/mx*100)}%"></div></div><div class="hbar-cnt">${c}</div></div>`).join('')
+    : '<div style="color:var(--muted);font-size:11px;padding:8px 0;">No referral source column found</div>';
+
+  /* Bar charts */
+  const mC=(rs)=>MO.map((_,i)=>rs.filter(r=>getMonth(r,mc,dc)===i+1).length);
+  const mB=(rs)=>MO.map((_,i)=>rs.filter(r=>getMonth(r,mc,dc)===i+1).reduce((s,r)=>s+getB(r),0));
+  const c26=mC(cur),c25=mC(prv);
+  const b26=mB(cur),b25=mB(prv);
+  barChart('cC',c26,c25);
+  barChart('cB',b26,b25);
+
+  /* Table */
+  const t25=c25.reduce((a,b)=>a+b,0), t26=c26.reduce((a,b)=>a+b,0);
+  document.getElementById('tbd').innerHTML=`
+    <tr><td class="c25">${PY}</td>${c25.map(v=>`<td class="c25">${v||'-'}</td>`).join('')}<td class="c25" style="font-weight:600;">${t25}</td></tr>
+    <tr><td class="c26">${CY}</td>${c26.map(v=>`<td class="c26">${v||'-'}</td>`).join('')}<td class="c26" style="font-weight:600;">${t26}</td></tr>`;
+
+  /* Status */
+  document.getElementById('sdot').className='status-dot live';
+  document.getElementById('sbar').textContent=`Live data · ${rows.length} total records (${tc} in ${CY}, ${tp} in ${PY})`;
+  document.getElementById('last-update').textContent='Updated '+new Date().toLocaleTimeString();
+}
+
+/* ─── Demo fallback ─── */
+function loadDemo() {
+  const srcs=['Doctor Socheat clinic','Nek tep clinic','Sente clinic','Elegant','Sokha Angkor clinic'];
+  const rows=[];
+  const c25=[39,43,29,32,29,20,27,16,7,22,10,11];
+  const c26=[8,5,6,0,0,0,0,0,0,0,0,0];
+  const b25=[14900,60800,48300,27900,71000,22100,15100,6300,1500,8200,4700,8500];
+  const b26=[8000,3000,4500,0,0,0,0,0,0,0,0,0];
+  for(let m=0;m<12;m++){
+    for(let i=0;i<c25[m];i++) rows.push({year:'2025',month:m+1,gender:Math.random()<.5?'Male':'Female',trauma:Math.random()<.32?'Trauma':'Non-Trauma',tariff:['Resident','Tourist','Expat'][Math.floor(Math.random()*3)],referral_source:srcs[Math.floor(Math.random()*srcs.length)],bill_amount:Math.round(b25[m]/c25[m]*(0.5+Math.random()))});
+    for(let i=0;i<c26[m];i++) rows.push({year:'2026',month:m+1,gender:Math.random()<.5?'Male':'Female',trauma:Math.random()<.32?'Trauma':'Non-Trauma',tariff:['Resident','Tourist','Expat'][Math.floor(Math.random()*3)],referral_source:srcs[Math.floor(Math.random()*srcs.length)],bill_amount:Math.round(b26[m]/Math.max(c26[m],1)*(0.5+Math.random()))});
+  }
+  const headers=['year','month','gender','trauma','tariff','referral_source','bill_amount'];
+  process({headers,rows});
+  document.getElementById('sdot').className='status-dot';
+  document.getElementById('sbar').textContent='⚠ Demo data shown (live fetch failed — check CORS or sheet permissions)';
+}
+
+/* ─── Init ─── */
+async function init() {
+  document.getElementById('ol-msg').textContent='Connecting to Google Sheets…';
+  document.getElementById('overlay').style.display='flex';
+  try {
+    const res = await fetch(CSV_URL);
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const txt = await res.text();
+    if (!txt || txt.length < 20) throw new Error('Empty CSV');
+    const parsed = parseCSV(txt);
+    process(parsed);
+  } catch(e) {
+    console.warn('Live fetch failed:', e.message);
+    loadDemo();
+  }
+  document.getElementById('overlay').style.display='none';
+}
+
+init();
+</script>
+</body>
+</html>
